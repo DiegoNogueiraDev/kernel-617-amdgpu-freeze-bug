@@ -178,10 +178,23 @@ sudo grub-set-default "Advanced options for Ubuntu>Ubuntu, with Linux 6.8.0-100-
 sudo update-grub
 ```
 
-## Bug Reports Filed
+## Bug Reports & Publications
 
-- **freedesktop.org GitLab** (amdgpu team): *link pending*
-- **Launchpad** (Ubuntu): *link pending*
+### Official Bug Reports
+- **Launchpad** (Ubuntu kernel team): [LP #2142367](https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2142367)
+- **freedesktop.org GitLab** (amdgpu team): *pending submission*
+
+### Public Posts
+- **Reddit r/Ubuntu**: [PSA: Kernel 6.17 causes 100% reproducible hard freeze on AMD Ryzen 5000U](https://www.reddit.com/r/Ubuntu/comments/1rb0bzq/psa_kernel_617_causes_100_reproducible_hard/)
+- **Reddit r/AMDHelp**: [AMD Ryzen 7 5825U — Hard freeze on kernel 6.17](https://www.reddit.com/r/AMDHelp/comments/1rb0dtv/amd_ryzen_7_5825u_barcelo_hard_freeze_on_kernel/)
+
+### Cross-referenced Issues
+- [NixOS/nixpkgs #466945](https://github.com/NixOS/nixpkgs/issues/466945#issuecomment-3939320794) — linux-firmware amdgpu regression
+- [CachyOS/linux-cachyos #642](https://github.com/CachyOS/linux-cachyos/issues/642#issuecomment-3939321473) — AMDGPU crashes and system freezes
+- [CachyOS/distribution #259](https://github.com/CachyOS/distribution/issues/259#issuecomment-3939321548) — Graphics freeze amdgpu
+- [pop-os/pop #2064](https://github.com/pop-os/pop/issues/2064#issuecomment-3939321629) — Pop!_OS amdgpu freezes
+- [pop-os/cosmic-comp #1953](https://github.com/pop-os/cosmic-comp/issues/1953#issuecomment-3939321963) — Hard freeze due to amdgpu on Rembrandt iGPU
+- [CachyOS/linux-cachyos #681](https://github.com/CachyOS/linux-cachyos/issues/681#issuecomment-3939322089) — modprobe amdgpu bug
 
 ## How to Reproduce
 
