@@ -29,11 +29,11 @@ Then I booted into 6.17 repeatedly and waited for it to crash. Later, I also tes
 
 ---
 
-## Results: 15 Boots, 15 Crashes
+## Results: 19 Boots, 17 Crashes — Spanning Kernels 6.17 to 6.19.3
 
-Each red bar below is a boot on kernel 6.17 that ended in a hard freeze. The green bars are boots on kernel 6.8 — all stable.
+Each red bar below is a boot on a broken kernel that ended in hard freeze. The green bars are boots on kernel 6.8 — all stable.
 
-![Timeline of 17 boots: all 6.17 crashed, all 6.8 survived](infografico-1-timeline-boots.png)
+![Timeline of boots: all 6.17 and 6.19.3 crashed, all 6.8 survived](infografico-1-timeline-boots.png)
 
 | Boot | Kernel | Time to freeze |
 |:----:|--------|:--------------:|
@@ -52,23 +52,18 @@ Each red bar below is a boot on kernel 6.17 that ended in a hard freeze. The gre
 | 13 | 6.17.0-14 | 9m 50s |
 | 14 | 6.17.0-14 | 8m 38s |
 | 15 | 6.17.0-14 | **2m 21s** |
+| 16 | **6.19.3-061903** | **~0m 47s** |
+| 17 | **6.19.3-061903** | **~1m 50s** |
 | — | **6.8.0-100** | **stable** |
 | — | **6.8.0-100** | **stable** |
 
-**Crash rate: 6.17 = 100% (15/15). Kernel 6.8 = 0% (0/2).**
+**Crash rate: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
 
-Median time to freeze: ~7 minutes. Range: 27 seconds to 43 minutes.
+Median time to freeze on 6.17: ~7 minutes (range: 27 seconds to 43 minutes). On 6.19.3: under 2 minutes in both boots.
 
-### Update: Kernel 6.19.3 — Still Affected
+### Kernel 6.19.3 — Forensic Evidence
 
-After the initial investigation on kernel 6.17, I installed the latest stable kernel **6.19.3-061903-generic** (released 2026-02-19) to check whether the regression had been fixed. It was not.
-
-| Boot | Kernel | Time to freeze |
-|:----:|--------|:--------------:|
-| 16 | 6.19.3-061903 | **~0m 47s** |
-| 17 | 6.19.3-061903 | **~1m 50s** |
-
-Both boots ended in abrupt, unclean shutdowns — the same pattern observed on 6.17. The forensic evidence:
+After the initial investigation on kernel 6.17, I installed the latest stable kernel **6.19.3-061903-generic** (released 2026-02-19) to check whether the regression had been fixed. It was not. Both boots ended in abrupt, unclean shutdowns — the same pattern observed on 6.17:
 
 - **Journal corruption**: `system.journal corrupted or uncleanly shut down, renaming and replacing`
 - **kerneloops**: `Found left-over process ... This usually indicates unclean termination of a previous run`
@@ -77,8 +72,6 @@ Both boots ended in abrupt, unclean shutdowns — the same pattern observed on 6
 - **amdgpu driver version**: 3.64.0, Display Core v3.2.359, DCN 2.1
 
 The [kernel 6.19.3 changelog](https://www.linuxcompatible.org/story/linux-kernel-6193-release-fixes-for-system-crashes-and-performance-issues) includes fixes for F2FS swapfile corruption, qla2xxx SCSI double-free, USB serial handling, and fbdev/rivafb — but **no fixes for amdgpu on Renoir/Barcelo APUs**.
-
-**Updated crash rate: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
 
 The regression is confirmed to span at least from kernel 6.17 through 6.19.3. Kernel 6.8 remains the only stable option for this hardware.
 

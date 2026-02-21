@@ -29,13 +29,11 @@ Então bootei no 6.17 repetidamente e esperei travar. Depois, testei o kernel 6.
 
 ---
 
-## Resultado: 15 boots, 15 crashes
+## Resultado: 19 boots, 17 crashes — Dos kernels 6.17 ao 6.19.3
 
-Cada barra vermelha abaixo é um boot no kernel 6.17 que terminou em hard freeze. As barras verdes são boots no kernel 6.8 — todos estáveis.
+Cada barra vermelha abaixo é um boot em um kernel afetado que terminou em hard freeze. As barras verdes são boots no kernel 6.8 — todos estáveis.
 
-![Timeline de 17 boots: todos os 6.17 travaram, todos os 6.8 sobreviveram](infografico-1-timeline-boots.png)
-
-Os tempos até o crash no kernel 6.17:
+![Timeline de boots: todos os 6.17 e 6.19.3 travaram, todos os 6.8 sobreviveram](infografico-1-timeline-boots.png)
 
 | Boot | Kernel | Tempo até freeze |
 |:----:|--------|:----------------:|
@@ -54,23 +52,18 @@ Os tempos até o crash no kernel 6.17:
 | 13 | 6.17.0-14 | 9m 50s |
 | 14 | 6.17.0-14 | 8m 38s |
 | 15 | 6.17.0-14 | **2m 21s** |
+| 16 | **6.19.3-061903** | **~0m 47s** |
+| 17 | **6.19.3-061903** | **~1m 50s** |
 | — | **6.8.0-100** | **estável** |
 | — | **6.8.0-100** | **estável** |
 
-**Taxa de crash: 6.17 = 100% (15/15). Kernel 6.8 = 0% (0/2).**
+**Taxa de crash: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
 
-Tempo mediano até o freeze: **~7 minutos**. Variação de 27 segundos a 43 minutos — o crash não depende de carga ou uso, é aleatório no tempo mas inevitável.
+Tempo mediano até o freeze no 6.17: **~7 minutos** (variação de 27s a 43min). No 6.19.3: menos de 2 minutos em ambos os boots.
 
-### Atualização: Kernel 6.19.3 — Também afetado
+### Kernel 6.19.3 — Evidências forenses
 
-Após a investigação inicial no kernel 6.17, instalei o kernel estável mais recente **6.19.3-061903-generic** (lançado em 2026-02-19) para verificar se a regressão havia sido corrigida. Não foi.
-
-| Boot | Kernel | Tempo até freeze |
-|:----:|--------|:----------------:|
-| 16 | 6.19.3-061903 | **~0m 47s** |
-| 17 | 6.19.3-061903 | **~1m 50s** |
-
-Ambos os boots terminaram em desligamento abrupto — o mesmo padrão do 6.17. As evidências forenses:
+Após a investigação inicial no kernel 6.17, instalei o kernel estável mais recente **6.19.3-061903-generic** (lançado em 2026-02-19) para verificar se a regressão havia sido corrigida. Não foi. Ambos os boots terminaram em desligamento abrupto — o mesmo padrão do 6.17:
 
 - **Corrupção de journal**: `system.journal corrupted or uncleanly shut down, renaming and replacing`
 - **kerneloops**: `Found left-over process ... This usually indicates unclean termination of a previous run`
@@ -79,8 +72,6 @@ Ambos os boots terminaram em desligamento abrupto — o mesmo padrão do 6.17. A
 - **Versão do driver amdgpu**: 3.64.0, Display Core v3.2.359, DCN 2.1
 
 O [changelog do kernel 6.19.3](https://www.linuxcompatible.org/story/linux-kernel-6193-release-fixes-for-system-crashes-and-performance-issues) inclui correções para corrupção de swapfile F2FS, double-free no qla2xxx SCSI, e USB serial — mas **nenhuma correção para amdgpu em APUs Renoir/Barcelo**.
-
-**Taxa atualizada: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
 
 A regressão é confirmada desde o kernel 6.17 até pelo menos o 6.19.3. O kernel 6.8 permanece a única opção estável para este hardware.
 
