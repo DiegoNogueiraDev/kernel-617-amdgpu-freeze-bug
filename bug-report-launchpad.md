@@ -1,11 +1,12 @@
-# [kernel 6.17] Hard freeze regression on AMD Barcelo (Renoir) APU - amdgpu driver
+# [kernel 6.17–6.19] Hard freeze regression on AMD Barcelo (Renoir) APU - amdgpu driver
 
 ## Summary
 
 Complete system hard freeze (no kernel panic, no oops, no watchdog trigger) occurs
-within minutes of booting on kernel 6.17.0-14-generic with AMD Barcelo (Renoir) APU.
-Kernel 6.8.0-100-generic is completely stable on the same hardware with the same
-boot parameters. The freeze is 100% reproducible.
+within minutes of booting on kernel 6.17.0-14-generic and 6.19.3-061903-generic with
+AMD Barcelo (Renoir) APU. Kernel 6.8.0-100-generic is completely stable on the same
+hardware with the same boot parameters. The freeze is 100% reproducible.
+The regression persists in the latest stable kernel (6.19.3, released 2026-02-19).
 
 ## Impact
 
@@ -29,8 +30,9 @@ unusable on this hardware.
 
 | Kernel | Status | Notes |
 |--------|--------|-------|
-| 6.8.0-100-generic | **STABLE** | No crashes in any session |
+| 6.8.0-100-generic | **STABLE** | No crashes in any session (0/2) |
 | 6.17.0-14-generic | **CRASHES** | 15/15 boots ended in hard freeze |
+| 6.19.3-061903-generic | **CRASHES** | 2/2 boots ended in hard freeze (latest stable) |
 
 ## Reproduction Data (2026-02-21)
 
@@ -66,7 +68,26 @@ quiet splash amdgpu.runpm=0 amd_pstate=passive
 | -5 | 6.8.0-100 | 11m 56s | Clean shutdown by user |
 | 0 | 6.8.0-100 | Running | Stable, still up |
 
-**Crash rate: 6.17 = 100% (15/15), 6.8 = 0% (0/2)**
+**Crash rate: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2)**
+
+### Update: Kernel 6.19.3 (2026-02-19 release)
+
+2 additional boots on kernel 6.19.3-061903-generic — both crashed:
+
+| Boot | Duration before freeze |
+|:----:|:----------------------:|
+| 16 | ~0m 47s |
+| 17 | ~1m 50s |
+
+Evidence of unclean shutdown:
+- Journal: `system.journal corrupted or uncleanly shut down, renaming and replacing`
+- kerneloops: `Found left-over process ... unclean termination of a previous run`
+- `last reboot`: Both entries show `still running` (no clean shutdown)
+- No panic, no oops, no watchdog — same pattern as 6.17
+- amdgpu driver 3.64.0, Display Core v3.2.359, DCN 2.1
+
+The 6.19.3 changelog includes fixes for F2FS, qla2xxx, USB serial, fbdev/rivafb
+but **no fixes for amdgpu on Renoir/Barcelo APUs**.
 
 ## Monitoring Data at Time of Freeze
 
@@ -136,9 +157,9 @@ amdgpu 0000:04:00.0: amdgpu: VRAM: 512M
 
 ## Bisect suggestion
 
-The regression is between kernel 6.8 and 6.17. A bisect of the amdgpu driver
-changes in this range (particularly for gfx9/Renoir/Barcelo) would likely
-identify the offending commit.
+The regression is between kernel 6.8 and 6.17, and persists through 6.19.3.
+A bisect of the amdgpu driver changes in this range (particularly for
+gfx9/Renoir/Barcelo) would likely identify the offending commit.
 
 ## Attachments
 

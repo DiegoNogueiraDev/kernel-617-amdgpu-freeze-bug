@@ -1,6 +1,6 @@
-# Kernel 6.17 Hard Freeze Regression on AMD Barcelo (Renoir) APU — 100% Reproducible
+# Kernel 6.17–6.19 Hard Freeze Regression on AMD Barcelo (Renoir) APU — 100% Reproducible
 
-> **15 consecutive boots on kernel 6.17 — ALL crashed. 2 boots on kernel 6.8 — ALL stable. Same hardware, same parameters, same day.**
+> **15 consecutive boots on kernel 6.17 — ALL crashed. 2 boots on kernel 6.19.3 — ALSO crashed. 2 boots on kernel 6.8 — ALL stable. Same hardware, same parameters, same day.**
 
 ![Crash Rate: 100% on 6.17 vs 0% on 6.8](infografico-4-taxa-crash.png)
 
@@ -23,9 +23,9 @@ Instead of simply reverting to the old kernel, I decided to investigate thorough
 - **pstore** for persisting crash data across reboots
 - **Persistent journal** with forced sync every 5 seconds
 
-I controlled the variable: **same hardware, same boot parameters** (`amdgpu.runpm=0 amd_pstate=passive`), only changing the kernel between 6.17 and 6.8. All tests were performed on the same day (2026-02-21).
+I controlled the variable: **same hardware, same boot parameters** (`amdgpu.runpm=0 amd_pstate=passive`), only changing the kernel between 6.17, 6.19.3, and 6.8. All tests were performed on the same day (2026-02-21).
 
-Then I booted into 6.17 repeatedly and waited for it to crash.
+Then I booted into 6.17 repeatedly and waited for it to crash. Later, I also tested kernel 6.19.3 (the latest stable release at the time) to check if the fix had landed upstream.
 
 ---
 
@@ -58,6 +58,29 @@ Each red bar below is a boot on kernel 6.17 that ended in a hard freeze. The gre
 **Crash rate: 6.17 = 100% (15/15). Kernel 6.8 = 0% (0/2).**
 
 Median time to freeze: ~7 minutes. Range: 27 seconds to 43 minutes.
+
+### Update: Kernel 6.19.3 — Still Affected
+
+After the initial investigation on kernel 6.17, I installed the latest stable kernel **6.19.3-061903-generic** (released 2026-02-19) to check whether the regression had been fixed. It was not.
+
+| Boot | Kernel | Time to freeze |
+|:----:|--------|:--------------:|
+| 16 | 6.19.3-061903 | **~0m 47s** |
+| 17 | 6.19.3-061903 | **~1m 50s** |
+
+Both boots ended in abrupt, unclean shutdowns — the same pattern observed on 6.17. The forensic evidence:
+
+- **Journal corruption**: `system.journal corrupted or uncleanly shut down, renaming and replacing`
+- **kerneloops**: `Found left-over process ... This usually indicates unclean termination of a previous run`
+- **`last reboot`**: Both 6.19.3 entries show `still running` (never properly shut down)
+- **No panic, no oops, no watchdog trigger** — identical to 6.17
+- **amdgpu driver version**: 3.64.0, Display Core v3.2.359, DCN 2.1
+
+The [kernel 6.19.3 changelog](https://www.linuxcompatible.org/story/linux-kernel-6193-release-fixes-for-system-crashes-and-performance-issues) includes fixes for F2FS swapfile corruption, qla2xxx SCSI double-free, USB serial handling, and fbdev/rivafb — but **no fixes for amdgpu on Renoir/Barcelo APUs**.
+
+**Updated crash rate: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
+
+The regression is confirmed to span at least from kernel 6.17 through 6.19.3. Kernel 6.8 remains the only stable option for this hardware.
 
 ---
 
@@ -113,7 +136,7 @@ The causal chain:
 3. **Ruled out**: Generic kernel bug — enabled watchdogs detect nothing
 4. **Evidence**: 6.8 stable, 6.17 crashes 100% → regression between these versions
 5. **Evidence**: Silent NMI → freeze below kernel → PCIe bus hang
-6. **Root cause**: **amdgpu driver regression between 6.8 and 6.17** causes GPU firmware lockup that propagates through PCIe and freezes the entire system
+6. **Root cause**: **amdgpu driver regression between 6.8 and 6.17** (persisting through 6.19.3) causes GPU firmware lockup that propagates through PCIe and freezes the entire system
 
 ### GPU Init Evidence
 
@@ -170,7 +193,7 @@ quiet splash amdgpu.runpm=0 amd_pstate=passive
 
 ## Workaround
 
-If you have an AMD Ryzen 5000 U-series (Barcelo, Lucienne, Cezanne) and are experiencing unexplained freezes on kernel 6.17: **revert to kernel 6.8**.
+If you have an AMD Ryzen 5000 U-series (Barcelo, Lucienne, Cezanne) and are experiencing unexplained freezes on kernels 6.17 through 6.19: **revert to kernel 6.8**.
 
 ```bash
 # Pin GRUB to kernel 6.8
@@ -199,15 +222,15 @@ sudo update-grub
 ## How to Reproduce
 
 1. Boot Ubuntu 24.04.4 on a system with AMD Ryzen 7 5825U (Barcelo/Renoir APU)
-2. Use kernel 6.17.0-14-generic with parameters: `amdgpu.runpm=0 amd_pstate=passive`
+2. Use kernel 6.17.0-14-generic or 6.19.3-061903-generic with parameters: `amdgpu.runpm=0 amd_pstate=passive`
 3. Use the desktop normally (GNOME/Wayland)
-4. System will hard-freeze within 0-43 minutes (median ~7 minutes)
+4. System will hard-freeze within 0-43 minutes (median ~7 minutes on 6.17, under 2 minutes on 6.19.3)
 5. Boot kernel 6.8.0-100-generic with identical parameters — no freeze
 
 ---
 
 **Test date**: 2026-02-21
-**Methodology**: 17 total boots (15 on 6.17, 2 on 6.8), continuous monitoring at 5s intervals, NMI watchdog + softlockup + hung task panic enabled, kdump configured, persistent journal.
+**Methodology**: 19 total boots (15 on 6.17, 2 on 6.19.3, 2 on 6.8), continuous monitoring at 5s intervals, NMI watchdog + softlockup + hung task panic enabled, kdump configured, persistent journal.
 
 ## License
 

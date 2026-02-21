@@ -1,6 +1,6 @@
 ## Summary
 
-Complete system hard freeze (no kernel panic, no oops, no watchdog trigger) occurs within minutes of booting on kernel 6.17.0-14-generic with AMD Barcelo (Renoir) APU. Kernel 6.8.0-100-generic is completely stable on the same hardware with the same boot parameters. The freeze is 100% reproducible.
+Complete system hard freeze (no kernel panic, no oops, no watchdog trigger) occurs within minutes of booting on kernel 6.17.0-14-generic and 6.19.3-061903-generic with AMD Barcelo (Renoir) APU. Kernel 6.8.0-100-generic is completely stable on the same hardware with the same boot parameters. The freeze is 100% reproducible. The regression persists in the latest stable kernel (6.19.3, released 2026-02-19).
 
 ## System Information
 
@@ -19,8 +19,9 @@ Complete system hard freeze (no kernel panic, no oops, no watchdog trigger) occu
 |--------|--------|:-----:|:----------:|
 | 6.8.0-100-generic | **STABLE** | 2 | 0% |
 | 6.17.0-14-generic | **CRASHES** | 15 | **100%** |
+| 6.19.3-061903-generic | **CRASHES** | 2 | **100%** |
 
-Both kernels tested with identical boot parameters: `amdgpu.runpm=0 amd_pstate=passive`
+All kernels tested with identical boot parameters: `amdgpu.runpm=0 amd_pstate=passive`
 
 ## Reproduction
 
@@ -47,6 +48,24 @@ Both kernels tested with identical boot parameters: `amdgpu.runpm=0 amd_pstate=p
 Median time to freeze: ~7 minutes. Range: 27 seconds to 43 minutes.
 
 2 boots on kernel 6.8 with identical parameters: both stable, no crash.
+
+### Update: Kernel 6.19.3 (latest stable, released 2026-02-19)
+
+2 boots on 6.19.3-061903-generic — both crashed with identical symptoms:
+
+| Boot | Duration before freeze |
+|:----:|:----------------------:|
+| 16 | ~0m 47s |
+| 17 | ~1m 50s |
+
+Forensic evidence:
+- Journal corruption: `system.journal corrupted or uncleanly shut down`
+- kerneloops: `unclean termination of a previous run`
+- `last reboot` shows `still running` (no clean shutdown)
+- No panic, no oops, no watchdog — identical pattern to 6.17
+- amdgpu 3.64.0, Display Core v3.2.359, DCN 2.1
+
+The 6.19.3 release includes no amdgpu fixes for Renoir/Barcelo. The regression is **not fixed upstream**.
 
 ## Monitoring Data at Time of Freeze
 
@@ -111,14 +130,14 @@ Init sequence is identical. 6.8 remains stable afterward; 6.17 does not.
 ## Steps to Reproduce
 
 1. Boot Ubuntu 24.04.4 on a system with AMD Ryzen 7 5825U (Barcelo/Renoir APU)
-2. Use kernel 6.17.0-14-generic with parameters: `amdgpu.runpm=0 amd_pstate=passive`
+2. Use kernel 6.17.0-14-generic or 6.19.3-061903-generic with parameters: `amdgpu.runpm=0 amd_pstate=passive`
 3. Use the desktop normally (GNOME/Wayland)
-4. System will hard-freeze within 0-43 minutes (median ~7 minutes)
+4. System will hard-freeze within 0-43 minutes (median ~7 min on 6.17, under 2 min on 6.19.3)
 5. Boot kernel 6.8.0-100-generic with identical parameters — no freeze
 
 ## Bisect Suggestion
 
-The regression is between kernel 6.8 and 6.17. A bisect of the amdgpu driver changes in this range — particularly for gfx9/Renoir/Barcelo, SMU, or PSP code paths — would likely identify the offending commit.
+The regression is between kernel 6.8 and 6.17, and persists through 6.19.3. A bisect of the amdgpu driver changes in this range — particularly for gfx9/Renoir/Barcelo, SMU, or PSP code paths — would likely identify the offending commit.
 
 ## Attachments
 

@@ -1,6 +1,6 @@
-# Kernel 6.17 é inutilizável em APUs AMD Barcelo: 15 crashes em 15 boots
+# Kernels 6.17–6.19 são inutilizáveis em APUs AMD Barcelo: 17 crashes em 17 boots
 
-**TL;DR**: O kernel 6.17.0-14-generic causa hard freeze total (sem panic, sem oops, sem watchdog) em sistemas com APU AMD Ryzen 5825U (Barcelo/Renoir). Testei 15 boots consecutivos no mesmo dia — todos travaram. Kernel 6.8 no mesmo hardware, mesmos parâmetros: zero crashes. É uma regressão no driver amdgpu.
+**TL;DR**: Os kernels 6.17.0-14-generic e 6.19.3-061903-generic causam hard freeze total (sem panic, sem oops, sem watchdog) em sistemas com APU AMD Ryzen 5825U (Barcelo/Renoir). Testei 15 boots no 6.17 e 2 boots no 6.19.3, todos no mesmo dia — todos travaram. Kernel 6.8 no mesmo hardware, mesmos parâmetros: zero crashes. É uma regressão no driver amdgpu que persiste até o kernel mais recente.
 
 ![Taxa de crash: 100% no 6.17 vs 0% no 6.8](infografico-4-taxa-crash.png)
 
@@ -23,9 +23,9 @@ Ao invés de simplesmente voltar ao kernel antigo, decidi investigar com rigor. 
 - **pstore** para persistir dados de crash entre reboots
 - **Journal persistente** com sync forçado a cada 5 segundos
 
-Controlei a variável: **mesmo hardware, mesmos parâmetros de boot** (`amdgpu.runpm=0 amd_pstate=passive`), alternando apenas o kernel entre 6.17 e 6.8. Todos os testes foram feitos no mesmo dia (2026-02-21).
+Controlei a variável: **mesmo hardware, mesmos parâmetros de boot** (`amdgpu.runpm=0 amd_pstate=passive`), alternando o kernel entre 6.17, 6.19.3 e 6.8. Todos os testes foram feitos no mesmo dia (2026-02-21).
 
-Então bootei no 6.17 repetidamente e esperei travar.
+Então bootei no 6.17 repetidamente e esperei travar. Depois, testei o kernel 6.19.3 (a versão estável mais recente na data) para verificar se a correção havia chegado upstream.
 
 ---
 
@@ -60,6 +60,29 @@ Os tempos até o crash no kernel 6.17:
 **Taxa de crash: 6.17 = 100% (15/15). Kernel 6.8 = 0% (0/2).**
 
 Tempo mediano até o freeze: **~7 minutos**. Variação de 27 segundos a 43 minutos — o crash não depende de carga ou uso, é aleatório no tempo mas inevitável.
+
+### Atualização: Kernel 6.19.3 — Também afetado
+
+Após a investigação inicial no kernel 6.17, instalei o kernel estável mais recente **6.19.3-061903-generic** (lançado em 2026-02-19) para verificar se a regressão havia sido corrigida. Não foi.
+
+| Boot | Kernel | Tempo até freeze |
+|:----:|--------|:----------------:|
+| 16 | 6.19.3-061903 | **~0m 47s** |
+| 17 | 6.19.3-061903 | **~1m 50s** |
+
+Ambos os boots terminaram em desligamento abrupto — o mesmo padrão do 6.17. As evidências forenses:
+
+- **Corrupção de journal**: `system.journal corrupted or uncleanly shut down, renaming and replacing`
+- **kerneloops**: `Found left-over process ... This usually indicates unclean termination of a previous run`
+- **`last reboot`**: Ambas as entradas do 6.19.3 mostram `still running` (nunca desligaram corretamente)
+- **Sem panic, sem oops, sem watchdog** — idêntico ao 6.17
+- **Versão do driver amdgpu**: 3.64.0, Display Core v3.2.359, DCN 2.1
+
+O [changelog do kernel 6.19.3](https://www.linuxcompatible.org/story/linux-kernel-6193-release-fixes-for-system-crashes-and-performance-issues) inclui correções para corrupção de swapfile F2FS, double-free no qla2xxx SCSI, e USB serial — mas **nenhuma correção para amdgpu em APUs Renoir/Barcelo**.
+
+**Taxa atualizada: 6.17 = 100% (15/15), 6.19.3 = 100% (2/2), 6.8 = 0% (0/2).**
+
+A regressão é confirmada desde o kernel 6.17 até pelo menos o 6.19.3. O kernel 6.8 permanece a única opção estável para este hardware.
 
 ---
 
@@ -115,7 +138,7 @@ A cadeia causal:
 3. **Descartado**: Bug no kernel genérico — watchdogs habilitados não detectam nada
 4. **Evidência**: 6.8 estável, 6.17 crash 100% → regressão entre essas versões
 5. **Evidência**: NMI silencioso → freeze abaixo do kernel → PCIe bus hang
-6. **Causa raiz**: **Regressão no driver amdgpu entre 6.8 e 6.17** causa lockup na GPU/firmware que propaga pelo PCIe e trava o sistema inteiro
+6. **Causa raiz**: **Regressão no driver amdgpu entre 6.8 e 6.17** (persistindo até o 6.19.3) causa lockup na GPU/firmware que propaga pelo PCIe e trava o sistema inteiro
 
 ### A evidência da GPU no init
 
@@ -172,9 +195,9 @@ quiet splash amdgpu.runpm=0 amd_pstate=passive
 
 ## Conclusão e workaround
 
-Isso é uma **regressão confirmada no driver amdgpu entre os kernels 6.8 e 6.17** que afeta APUs AMD Barcelo (Renoir). A regressão causa um hard freeze total que nenhum mecanismo de detecção do kernel consegue capturar — indicando um travamento no nível de hardware/firmware da GPU que se propaga pelo barramento PCIe.
+Isso é uma **regressão confirmada no driver amdgpu entre os kernels 6.8 e 6.17, persistindo até o 6.19.3**, que afeta APUs AMD Barcelo (Renoir). A regressão causa um hard freeze total que nenhum mecanismo de detecção do kernel consegue capturar — indicando um travamento no nível de hardware/firmware da GPU que se propaga pelo barramento PCIe.
 
-**Se você tem um AMD Ryzen 5000 série U (Barcelo, Lucienne, Cezanne) e está tendo freezes no kernel 6.17: volte para o 6.8.** É a única solução até que o bug seja corrigido upstream.
+**Se você tem um AMD Ryzen 5000 série U (Barcelo, Lucienne, Cezanne) e está tendo freezes nos kernels 6.17 a 6.19: volte para o 6.8.** É a única solução até que o bug seja corrigido upstream.
 
 ### Workaround
 
@@ -191,6 +214,6 @@ sudo update-grub
 
 ---
 
-**Sistema**: Ubuntu 24.04.4 LTS, AMD Ryzen 7 5825U, kernel 6.17.0-14-generic vs 6.8.0-100-generic.
-**Metodologia**: 17 boots totais (15 no 6.17, 2 no 6.8), monitoramento contínuo a cada 5s, NMI watchdog + softlockup + hung task panic habilitados, kdump configurado, journal persistente.
+**Sistema**: Ubuntu 24.04.4 LTS, AMD Ryzen 7 5825U, kernels 6.17.0-14-generic, 6.19.3-061903-generic e 6.8.0-100-generic.
+**Metodologia**: 19 boots totais (15 no 6.17, 2 no 6.19.3, 2 no 6.8), monitoramento contínuo a cada 5s, NMI watchdog + softlockup + hung task panic habilitados, kdump configurado, journal persistente.
 **Data dos testes**: 2026-02-21.
